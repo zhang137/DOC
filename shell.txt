@@ -1,0 +1,1632 @@
+
+重复上一条命令
+Type !! and press enter
+Type !-1 and press enter
+
+搜索命令历史
+Search the history using Control+R
+
+搜索上一条已执行过的  ps -l  !ps ENTER 将执行 ps -l
+Type ! followed by the starting few letters of the command that you
+would like to re-execute.
+
+
+冒号：内建空指令，返回值为0 
+
+'string' 单引号 和 "string" 双引号 
+双引号：如果想在定义的变量中加入空格，就必须使用单引号或双引号，
+单、双引号的区别在于双引号转义特殊字符而单引号不转义特殊字符
+
+; 分号: 在 shell 中，担任"连续指令"功能的符号就是"分号"
+
+(ls;ps -lf) 产生子shell 进程列表
+
+{ls;ps -lf} 不产生子shell 命令列表
+ 
+
+# 井号：表示符号后面的是注解文字，不会被执行
+
+** 次方运算：两个星号在运算时代表 "次方" 的意思 
+
+AND列表 statement1 && statement2 && statement3 && …:只有在前面所有的命令都执行成功的情况下才执行后一条命令
+OR列表 statement1 || statement2 || statement3 || …:允许执行一系列命令直到有一条命令成功为止，其后所有命令将不再被执行
+
+/ 倒斜线：
+放在指令前，有取消 aliases（别名） 的作用；
+放在特殊符号前，则该特殊符号的作用消失；
+放在指令的最末端，表示指令连接下一行（使得回车符无效，只起换行作用）
+
+【datasheet】
+https://devhints.io/bash
+
+
+终端 按键信号
+Ctrl-c Kill foreground process  SIGINT
+Ctrl-z Suspend foreground process  SIGSTP
+Ctrl-d Terminate input, or exit shell SIGHUP 断开与终端链接
+Ctrl-s Suspend output 
+Ctrl-q Resume output
+Ctrl-o Discard output
+Ctrl-l Clear screen
+ctrl-\ SIGQUIT
+
+SIGQUIT SIGABRT 会产生core文件
+SIGSTOP SIGKILL 不能捕捉
+
+
+Ctrl+C – halts the current command
+Ctrl+Z – stops the current command, resume with fg in the foreground or bg in the background
+Ctrl+D – log out of current session, similar to exit
+Ctrl+W – erases one word in the current line
+Ctrl+U – erases the whole line
+Ctrl+R – type to bring up a recent command
+!! - repeats the last command
+exit – log out of current session
+
+date – show the current date and time
+cal – show this month's calendar
+uptime – show current uptime
+w – display who is online
+whoami – who you are logged in as
+finger user – display information about user
+uname -a – show kernel information
+cat /proc/cpuinfo – cpu information
+cat /proc/meminfo – memory information
+man command – show the manual for command
+df – show disk usage
+du – show directory space usage
+free – show memory and swap usage
+whereis app – show possible locations of app
+which app – show which app will be run by default
+
+
+【】压缩与解压
+tar cf file.tar files – create a tar named file.tar containing files
+tar xf file.tar – extract the files from file.tar
+tar czf file.tar.gz files – create a tar with
+
+Gzip compression
+tar xzf file.tar.gz – extract a tar using Gzip
+tar cjf file.tar.bz2 – create a tar with Bzip2
+
+compression
+tar xjf file.tar.bz2 – extract a tar using Bzip2
+gzip file – compresses file and renames it to file.gz
+gzip -d
+
+
+【】变量
+readonly var 只读变量
+local var 局部变量
+declare -i/-r var=value (-i 表示整形 -r 表示只读 -a 数组 ) 
+
+[]declare  -x 表示子进程可以继承
+
+$declare -x global=world
+$ echo $global
+world
+
+$ bash
+$ echo $global
+world
+
+global=country
+$ echo $global
+country
+$ exit
+$ echo $global
+world
+
+
+export var=“hello” 导出var到全局环境变量
+
+set var=“hello”  shell 局部变量 子shell仅能继承全局变量 子shell 对变量的任何更改都不能传播
+unset 取消一个环境变量
+
+【】变量替换
+$() `` 变量替换 ****【获取的是字符串】
+
+var= 空变量
+var=“string”
+var=3
+
+$var与${var}是没有区别的，但是用${ }会比较精确的界定变量名称的范围
+
+【一】【${var-default} ${var:-default}】  
+If the parameter PARAMETER is unset (never was defined) or null (empty), this one expands to WORD, otherwise it expands to the value of PARAMETER, as if it just was ${PARAMETER}.
+If you omit the : (colon), like shown in the second form, the default value is only used when the parameter was unset, not when it was empty.
+
+echo "Your home directory is: ${HOME:-/home/$USER}."
+echo "${HOME:-/home/$USER} will be used to store your personal data."
+If HOME is unset or empty, everytime you want to print something useful, you need to put that parameter syntax in.
+
+#!/bin/bash
+
+read -p "Enter your gender (just press ENTER to not tell us): " GENDER
+echo "Your gender is ${GENDER:-a secret}."
+It will print "Your gender is a secret." when you don't enter the gender. Note that the default value is used on expansion time, it is not assigned to the parameter.
+
+【二】【${var+default} ${var:+default}】
+
+This form expands to nothing if the parameter is unset or empty. If it is set, it does not expand to the parameter's value, but to some text you can specify:
+
+echo "The Java application was installed and can be started.${JAVAPATH:+ NOTE: JAVAPATH seems to be set}"
+The above code will simply add a warning if JAVAPATH is set (because it could influence the startup behaviour of that imaginary application).
+Some more unrealistic example… Ask for some flags (for whatever reason), and then, if they were set, print a warning and also print the flags:
+
+#!/bin/bash
+
+read -p "If you want to use special flags, enter them now: " SPECIAL_FLAGS
+echo "The installation of the application is finished${SPECIAL_FLAGS:+ (NOTE: there are special flags set: $SPECIAL_FLAGS)}."
+If you omit the colon, as shown in the second form (${PARAMETER+WORD}), the alternate value will be used if the parameter is set (and it can be empty)! You can use it, for example, to complain if variables you need (and that can be empty) are undefined:
+
+# test that with the three stages:
+
+# unset foo
+# foo=""
+# foo="something"
+
+if [[ ${foo+isset} = isset ]]; then
+  echo "foo is set..."
+else
+  echo "foo is not set..."
+fi
+
+
+var=string   echo ${var}s 输出strings  echo $vars 没有vars这个变量 
+
+a=b b=c 
+echo ${!a} 输出c
+
+假设我们定义了一个变量为： 
+file=/dir1/dir2/dir3/my.file.txt 
+我们可以用 ${ } 分别替换获得不同的值： 
+${file#*/}：拿掉第一条 / 及其左边的字符串：dir1/dir2/dir3/my.file.txt 
+${file##*/}：拿掉最后一条 / 及其左边的字符串：my.file.txt 
+${file#*.}：拿掉第一个 . 及其左边的字符串：file.txt 
+${file##*.}：拿掉最后一个 . 及其左边的字符串：txt 
+${file%/*}：拿掉最后条 / 及其右边的字符串：/dir1/dir2/dir3 
+${file%%/*}：拿掉第一条 / 及其右边的字符串：(空值) 
+${file%.*}：拿掉最后一个 . 及其右边的字符串：/dir1/dir2/dir3/my.file 
+${file%%.*}：拿掉第一个 . 及其右边的字符串：/dir1/dir2/dir3/my 
+记忆的方法为：
+
+# 是去掉左边(在鉴盘上 # 在 $ 之左边) 
+% 是去掉右边(在鉴盘上 % 在 $ 之右边) 
+单一符号是最小匹配﹔两个符号是最大匹配。
+
+
+${file:0:5}：提取最左边的 5 个字节：/dir1 
+${file:5:5}：提取第 5 个字节右边的连续 5 个字节：/dir2 
+
+我们也可以对变量值里的字符串作替换： 
+${file/dir/path}：将第一个 dir 提换为 path：/path1/dir2/dir3/my.file.txt 
+${file//dir/path}：将全部 dir 提换为 path：/path1/path2/path3/my.file.txt  //[1-4]/ 1-4数字替换为空，支持正则表达式
+
+利用 ${ } 还可针对不同的变量状态赋值(没设定、空值、非空值)： 
+${file-my.file.txt} ：假如 $file 为空值，则使用 my.file.txt 作默认值。(保留没设定及非空值) 
+${file:-my.file.txt} ：假如 $file 没有设定或为空值，则使用 my.file.txt 作默认值。 (保留非空值) 
+${file+my.file.txt} ：不管 $file 为何值，均使用 my.file.txt 作默认值。 (不保留任何值) 
+${file:+my.file.txt} ：除非 $file 为空值，否则使用 my.file.txt 作默认值。 (保留空值) 
+${file=my.file.txt} ：若 $file 没设定，则使用 my.file.txt 作默认值，同时将 $file 定义为非空值。 (保留空值及非空值) 
+${file:=my.file.txt} ：若 $file 没设定或为空值，则使用 my.file.txt 作默认值，同时将 $file 定义为非空值。 (保留非空值) 
+${file?my.file.txt} ：若 $file 没设定，则将 my.file.txt 输出至 STDERR。 (保留空值及非空值)) 
+${file:?my.file.txt} ：若 $file 没设定或为空值，则将 my.file.txt 输出至 STDERR。 (保留非空值) 
+
+还有，${#var} 可计算出变量值的长度： 
+${#file} 可得到 27 ，因为 /dir1/dir2/dir3/my.file.txt 刚好是 27 个字节...
+
+【】分割扩展名
+名称.扩展名
+
+${VAR%.*}含义是
+删除位于  % 右侧的通配符（在前例中是 .*）所匹配的字符串
+
+% 属于非贪婪（non-greedy）操作。它从右到左找出匹配通配符的最短结果
+%% 行为模式却是贪婪的，这意味着它会匹配符合条件的最长的字符
+
+VAR=hack.fun.book.txt
+echo ${VAR%.*}
+得到输出： hack.fun.book
+
+echo ${VAR%%.*}
+得到输出： hack
+
+${VAR#*.} 的含义如下所述：
+从 $VAR 中删除位于#右侧的通配符（即在前例中使用的 *.）(从左到右)所匹配的字符串。通配符从左向右进行匹配。
+## 从左向右进行贪婪匹配，并从指定变量中删除匹配结果。
+
+VAR=hack.fun.book.txt
+
+$ echo ${VAR#*.}
+得到输出： fun.book.txt
+操作符 # 用 *. 从左向右执行非贪婪匹配（ hack ）。
+$ echo ${VAR##*.}
+得到输出： txt
+
+【】双括号运算符
+(( expression ))  ((var++)) ((var = $var ** 2)) ((var= $var & 1)) 
+((var= $var << 1)) ((var= ~$var)) ((var= ! $var)) echo $(($var && 0))
+
+expression 可以是任意的数学赋值或比较表达式。除了 test 命令使用的标准数学运算符，
+val++ val-- ++val --val !取非 ~取反 **幂运算 <<左位移 >>右位移 &位布尔和 |位布尔或 &&逻辑和 ||逻辑或 
+
+【】双方括号运算符
+[[]] 模式匹配 
+
+【】 []或test 为测试条件
+
+[]/test 【比较文件】 的命令
+-d file          检查 file 是否存在并是一个目录
+-e file          检查 file 是否存在
+-f file          检查 file 是否存在并是一个文件
+-r file          检查 file 是否存在并可读
+-s file          检查 file 是否存在并非空
+-w file          检查 file 是否存在并可写
+-x file          检查 file 是否存在并可执行
+-O file          检查 file 是否存在并属当前用户所有
+-G file          检查 file 是否存在并且默认组与当前用户相同
+file1 -nt file2  检查 file1 是否比 file2 新
+file1 -ot file2  检查 file1 是否比 file2 旧
+file1 -ef file2	 第一个档案与第二个档案为同一个档案（ link 之类的档案
+
+[]/test比较【字符串】的命令 [[]]高级字符串比较 
+str1 = str2     检查 str1 是否和 str2 相同
+str1 != str2    检查 str1 是否和 str2 不同
+
+********************必须转义否则会被理解为 重定向符号
+-------------------------------------------------------
+str1 < str2     检查 str1 是否比 str2 小 必须转义 \<   
+str1 > str2     检查 str1 是否比 str2 大 \>
+
+test 相对于 sort 处理 大小写字符刚好相反  sort 总是小写先出现  小写 ascii 97 开始 大写 65开始
+
+=-------------------------------------------------
+ 
+-n str1         检查 str1 的长度是否非0
+-z str1         检查 str1 的长度是否为0
+
+[]/test 比较【数值】的命令
+n1 -eq n2      检查 n1 是否与 n2 相等
+n1 -ge n2      检查 n1 是否大于或等于 n2
+n1 -gt n2      检查 n1 是否大于 n2
+n1 -le n2      检查 n1 是否小于或等于 n2
+n1 -lt n2      检查 n1 是否小于 n2
+n1 -ne n2      检查 n1 是否不等于 n2
+
+----------------------------------------------------------------
+【】
+&&  与
+||  或   
+-------------------------------------------------
+-a	双方都成立（and） 逻辑表达式 –a 逻辑表达式  
+-o	单方成立（or） 逻辑表达式 –o 逻辑表达式  
+
+if [ $var -eq 3 ] && [ $var -eq 4];then
+fi
+
+if [ $var -eq 3  -a  $var -eq 4 ];then
+fi
+
+[ condition1 ] && [ condition2 ]
+[ condition1 ] || [ condition2 ]
+
+
+【条件表达式】
+[[]]双方括号命令提供了针对字符串比较的高级特性，不过不是所有的shell都支持双方括号
+
+if [[ $var -eq 3 && $v = "hello" ]];then
+fi
+
+********支持模式匹配
+if [[ $USER == r* ]]
+then
+echo "Hello $USER"
+else
+echo "Sorry, I do not know you"
+fi
+
+【重要提示】
+Rule of thumb: Use -a and -o inside square brackets, && and || outside.
+
+It's important to understand the difference between shell syntax and the syntax of the [ command.
+
+&& and || are shell operators. They are used to combine the results of two commands. Because they are shell syntax, 
+they have special syntactical significance and cannot be used as arguments to commands.
+
+[ is not special syntax. It's actually a command with the name [, also known as test. 
+Since [ is just a regular command, it uses -a and -o for its and and or operators.
+It can't use && and || because those are shell syntax that commands don't get to see.
+
+But wait! Bash has a fancier test syntax in the form of [[ ]]. 
+If you use double square brackets, you get access to things like regexes and wildcards. 
+You can also use shell operators like &&, ||, <, and > freely inside the brackets because,
+ unlike [, the double bracketed form is special shell syntax. 
+Bash parses [[ itself so you can write things like [[ $foo == 5 && $bar == 6 ]]
+
+
+--------------------------------------------------------------------------
+
+
+
+
+【;】: commands separated by a ; are executed sequentially. The shell waits for each command to terminate in turn.
+
+【&&】: command after && is executed if, and only if, command before && returns an exit status of zero. You can think of it as AND operator.
+
+【|】: a pipe. In expression command1 | command2 The standard output of command1 is connected via a pipe to the standard input of command2.There are more similar control operators, worth to mention:
+
+【||】: command after || is executed if, and only if, command before || returns a non-zero exit status. You can think of it as OR operator. Please note, that | and || are completely different animals.
+
+【&】: the shell executes the command terminated by & in the background, does not wait for the command to finish and immediately returns exit code 0. Once again, & has nothing to do with &&.
+
+【|&】: a shorthand for 2>&1 | i.e. both standard output and standard error of command1 are connected to command2's standard input through the pipe.
+
+
+
+-------------------------------------------------------------------------------------------
+
+【数学计算】 echo $((1+2)) |||  输出3
+
+*******(( expression )) expression（可以是任意的数学赋值或比较表达式） test 只能放置简单的数学表达式
+
+if (( $val1 ** 2 > 90 ))
+then
+    (( val2 = $val1 ** 2 ))
+    echo "The square of $val1 is $val2"
+fi
+
+【】************【 $(())  高级数据表达式，支持的运算符 】
+
+val++
+后增
+val--
+后减
+++val
+先增
+--val
+先减
+!
+逻辑求反
+~
+位求反
+**
+幂运算
+<<
+左位移
+>>
+右位移
+&
+位布尔和
+|
+位布尔或
+&&
+逻辑和
+||
+逻辑或
+
+$(( ))可以将其他进制转成十进制数显示出来。用法如下：
+echo $((N#xx))
+其中，N为进制，xx为该进制下某个数值，命令执行后可以得到该进制数转成十进制后的值。
+
+[root@localhost ~]# echo $((2#110))
+6
+[root@localhost ~]# echo $((16#2a))
+42
+[root@localhost ~]# echo $((8#11))
+9
+
+【】************* $[ operation ] 将数学表达式围起来。获取数学表达式的值
+
+var=1  $[var<<1] 变量为2 $[var>>1] 变量为0 
+
+$[var+=1] var为2 
+$[var | 1] 为1  $[var & 0] 为 0 
+
+【】自增
+i=$(($i+1))
+i=$( expr $i + 1 )
+i=`expr $i + 1`
+var=$[$var+1]
+let "var += 1"
+
+let "t2 = ((a = 9, 15 / 3))"
+# Set "a = 9" and "t2 = 15 / 3"
+
+
+【】bc命令  处理浮点数
+expr $i + 1
+$[$i+1]
+
+
+var3=$(echo "scale=4; $var1 * $var1" | bc)
+
+var1=10.46
+var2=43.67
+var3=33.2
+var4=71
+var5=$(bc << EOF
+scale = 4
+a1 = ( $var1 * $var2)
+b1 = ($var3 * $var4)
+a1 + b1
+EOF
+)
+
+scale 小数点位数
+obase 进制数 2 8 10 16
+
+
+
+------------------------------------------------------------------------------
+
+
+
+【】shell 调试
+
+bash -x script.sh 调试脚本命令
+
+#!/bin/bash -xv 改变shebang 也可以不用其他选项调试
+
+限制调试区域
+for i in {1..6};
+do
+set -x
+echo $i
+set +x
+done
+echo "Script executed"
+
+
+#!/bin/bash
+function DEBUG()
+
+{
+   [ "$_DEBUG" == "on" ] && $@ || :  【:告诉shell 不要进行任何操作 默认返回0】 : 是shell中的空语句
+}
+
+: << COMMENTBLOCK
+   shell脚本代码段
+COMMENTBLOCK
+
+在这中间的shell语句不会执行 用于批量注释语句
+
+
+for i in {1..10}.txt
+do
+DEBUG echo $i
+done
+
+$ _DEBUG=on ./script.sh   
+
+set –x ：在执行时显示参数和命令。
+set +x ：禁止调试。
+set –v ：当命令进行读取时显示输入。
+set +v ：禁止打印输入
+
+
+$？ 查看命令退出状态
+$$ 特殊环境变量 设置为当前进程id
+$-  当前shell 设置的选项
+$!  显示一个后台命令的pid
+$#  显示当前传入参数的总数
+$_：在此之前执行的命令或脚本的最后一个参数
+
+$0 shell脚本的名字
+$1 $2 $3 $4 shell的1,2,3,4变量
+
+basename命令 dirname
+./shell.sh 为#0 var=$[basename $0] var是 shell.sh
+
+【$@与$*】:这个程序的所有参数"$1" "$2" "$3" "..."，这是将参数传递给其它程序的最佳方式，因为它会保留所有内嵌在每个参数里的任何空白
+
+There are special parameters that allow accessing all the command-line arguments at once.
+$* and $@ both will act the same unless they are enclosed in double quotes, "".
+Both the parameters specify the command-line arguments. 
+However, the "$*" special parameter takes the entire list as one argument with spaces between and the "$@" special parameter takes the entire list and separates it into separate arguments.
+
+【$*与$@相同但是 “$*”与“$@”】的区别：
+$*将命令行的所有参数视为一个字符串："$1$2$3..."
+$@将命令行的每个参数视为单个的字符串："$1" "$2" "$3" ...
+
+
+【】条件控制
+if [] / test
+then
+elif [] /test
+else
+fi
+
+if []/test; then
+fi
+
+for [] / test
+do
+done
+
+while [] / test
+do
+done
+
+until [] /test
+do
+done
+
+
+case  variable in
+pattern1 |  pattern2 )  commands1 ;;
+pattern3 )  commands2 ;;
+*)  default commands ;;
+esac
+
+case $USER in
+
+rich | barbara)(条件1)
+   statement;;
+
+testing)(条件2)
+   statement;;
+
+jessica)(条件3)
+   shift
+   statement;;
+
+*)(默认)
+   statement;;
+esac
+
+
+break
+
+continue
+
+【】重定向
+
+ 1>重定向输出 2>重定向错误 &>所有重定向
+ exec 1> test  永久重定向 
+
+ exec 0< testfile 将stdin重定向到文件 
+例子
+exec 0< testfile
+count=1
+while read line
+do
+    echo "Line #$count: $line"
+    count=$[ $count + 1 ]
+done
+
+******不允许有空格******************8 
+【1】echo "dadad" &> /dev/null STDOUT和STDERR同时重定向到/dev/null
+【2】echo "重定向文字到描述符3" >&3
+【3】exec 3>> test13out 重定向到描述符3的文字追加到 test13out文件中
+【4】exec 3>&1 重定向文件描述符
+【5】exec 6<&0
+【6】exec 0< testfile  创建输入描述符
+【7】exec 3<> testfile  创建读写描述符
+【8】exec 3>&- 关闭文件描述符
+
+
+【】lsof 列出打开的描述符
+
+输出/输入重导向 
+> >>   <   <<   :>   &>   2&>   2<>>&   >&2  
+
+文件描述符(File Descriptor)，用一个数字（通常为0-9）来表示一个文件。 
+常用的文件描述符如下： 
+文件描述符     名称     常用缩写 默认值 
+0        标准输入 stdin    键盘 
+1        标准输出 stdout     屏幕 
+2    标准错误输出   stderr     屏幕 
+我们在简单地用<或>时，相当于使用 0< 或 1>（下面会详细介绍）。 
+* cmd > file 
+把cmd命令的输出重定向到文件file中。如果file已经存在，则清空原有文件，使用bash的noclobber选项可以防止复盖原有文件。 
+* cmd >> file 
+把cmd命令的输出重定向到文件file中，如果file已经存在，则把信息加在原有文件後面。 
+* cmd < file 
+使cmd命令从file读入 
+* cmd << text 
+从命令行读取输入，直到一个与text相同的行结束。除非使用引号把输入括起来，此模式将对输入内容进行shell变量替换。如果使用<<- ，则会忽略接下来输入行首的tab，结束行也可以是一堆tab再加上一个与text相同的内容，可以参考後面的例子。 
+* cmd <<< word 
+把word（而不是文件word）和後面的换行作为输入提供给cmd。 
+* cmd <> file 
+以读写模式把文件file重定向到输入，文件file不会被破坏。仅当应用程序利用了这一特性时，它才是有意义的。 
+* cmd >| file 
+功能同>，但即便在设置了noclobber时也会复盖file文件，注意用的是|而非一些书中说的!，目前仅在csh中仍沿用>!实现这一功能。 
+: > filename    把文件\"filename\"截断为0长度.# 如果文件不存在, 那么就创建一个0长度的文件(与'touch'的效果相同). 
+cmd >&n 把输出送到文件描述符n 
+cmd m>&n 把输出 到文件符m的信息重定向到文件描述符n 
+cmd >&- 关闭标准输出 
+cmd <&n 输入来自文件描述符n 
+cmd m<&n m来自文件描述各个n 
+cmd <&- 关闭标准输入 
+cmd <&n- 移动输入文件描述符n而非复制它。（需要解释） 
+cmd >&n- 移动输出文件描述符 n而非复制它。（需要解释） 
+注意： >&实际上复制了文件描述符，这使得cmd > file 2>&1与cmd 2>&1 >file的效果不一样。
+
+【】信号处理
+ctrl+C 中断进程产生SIGINT 
+ctrl+Z 暂停进程产生SIGTSST
+Ctrl+D 组合键会在bash中产生一个EOF字符
+
+
+【】常见命令
+cat >> testfile << EOF
+
+mktemp创建临时文件或目录  mktemp -t test.xxxx 在 /tmp目录下创建文件 -d选项创建临时目录  -u只创建名 不实际创建目录或文件
+
+tee 命令相当于管道的一个T型接头。它将从 STDIN 过来的数据同时发往两处。一处是STDOUT ，另一处是 tee 命令行所指定的文件名：tee filename
+
+tee -a filename 追加到文件
+
+--------------------------------------------------
+******trap 命令允许你来指定shell 脚本要监看并从shell中拦截的Linux信号 trap "echo 'Sorry! I have trapped Ctrl-C'" SIGINT
+shell脚本退出是EXIT  trep --(-) SIGINT 回复SIGINT的行为
+--------------------------------------------------
+nohup命令阻断所有发送给该进程的 SIGHUP 信号 nohup ./test1.sh &
+jobs 查看后台运行的作业
+bg 后台重启一个作业 bg 2000
+fg 前台重启一个作业 fg 2000
+
+nice 命令允许你设置命令启动时的调度优先级
+renice 命令改变系统上已运行命令的优先级。
+
+at 命令允许指定Linux系统何时运行脚本。 at 命令会将作业提交到队列中，指定shell何时运行该作业。 at 的守护进程 atd 会以后台模式运行，检查作业队列来运行作业
+ 
+
+【】函数传递数组
+
+@@@传入数组
+function testit {
+echo "The parameters are: $@"
+thisarray=$1
+echo "The received array is ${thisarray[*]}"
+}
+myarray=(1 2 3 4 5)
+echo "The original array is: ${myarray[*]}"
+testit $myarray
+
+@@@传入数组
+function testit {
+local newarray
+newarray=($(echo "$@"))
+echo "The new array value is: ${newarray[*]}"
+}
+myarray=(1 2 3 4 5)
+echo "The original array is ${myarray[*]}"
+testit ${myarray[*]}
+
+@@@传出数组
+function arraydblr {
+local origarray
+local newarray
+local elements
+local i
+origarray=($(echo "$@"))
+newarray=($(echo "$@"))
+elements=$[ $# - 1 ]
+for (( i = 0; i <= $elements; i++ ))
+{
+newarray[$i]=$[ ${origarray[$i]} * 2 ]
+}
+echo ${newarray[*]}
+}
+myarray=(1 2 3 4 5)
+echo "The original array is: ${myarray[*]}"
+arg1=$(echo ${myarray[*]})
+result=($(arraydblr $arg1))
+echo "The new array is: ${result[*]}"
+
+arr_length=${#arr_number[*]}或${#arr_number[@]}均可，即形式：${#数组名[@/*]} 可得到数组的长度。
+arr_index2=${arr_number[2]}，即形式：${数组名[下标]}
+
+
+【】函数递归
+
+斐波那契数列
+//test.sh
+#!/bin/bash 
+ 
+func() {
+    local var
+    var=$1
+    if [ $var -eq 1 ]
+    then
+         array=(1 1)
+         echo ${array[*]}
+    else
+         tmp=$[ $var - 1 ]
+         arg1=($(func $tmp))
+         arg2=$[ ${arg1[ $[ ${#arg1[*]} - 1 ] ]} + ${arg1[ ${#arg1[*]} - 2 ]} ]
+         result=($(echo ${arg1[*]}) $arg2)
+         echo ${result[*]} 
+    fi
+ }
+ 
+#echo $(func $1)
+
+
+【】 创建函数库
+
+根据上条的文件 其他shell脚本复用test.sh的代码
+#!/bin/bash 
+ 
+source ./test.sh 或是 . ./test.sh 
+echo $(func $1)
+
+shtool 函数库
+
+
+【】 使用函数
+
+function func {
+
+}
+或是
+func() {
+
+}
+
+命令行使用函数
+function divem { echo $[ $1 / $2 ]; } 单行定义函数需要 每一条命令都加 ;
+
+或是
+function multem {
+> echo $[ $1 * $2 ]
+> }
+
+
+
+【】echo命令
+echo -e 选项 包含转义字符   echo -e "1\t2\t3\n5"   输出  1	2	3   没有e选项 1\t2\t3\n5
+							 5
+echo "Hello" 1> test
+echo {1..50} 能够生成一个从1~50的数字列表。 echo {a..z} 或 {A..Z} 或 {a..h} 
+
+
+【】printf命令
+printf "%-5s %-10s %-4.2f\n" NO Name 80.3456  输出No     Name          80.34
+printf "%5s %-10s %-4.2f\n" NO Name 80.3456  输出     No Name          80.34
+
+【】read 命令
+read -n 2 var 从标准输入中读取2个字符
+read -s var 无回显方式
+read -p "Enter input:" var 显示输入提示
+read -t 2 var 2秒内输入变量var
+read -d ":" var 用 ":"做特殊的界定符 做输入的结束
+
+
+【】无限循环函数 
+：总是返回值为0
+repeat() { while :; do $@ && return; done };
+
+
+【】find命令
+-iname 表示不区分大小写
+
+find . \( -name "*.txt" -o -name "*.pdf" \) -print   \( \)表示一个整体
+
+find . -iregex ".*\(\.py\|\.sh\)$" 使用正则表达式
+
+find . ! -name "*.txt" -print  匹配不已 .txt 结尾的文件 !表示否定参数
+
+ -mindepth   -maxdepth
+
+ find . -type f -print
+普通文件  f  符号链接  l  目录  d 字符设备  c  块设备  b  套接字  s   FIFO  p
+
+访问时间（ -atime ）：用户最近一次访问文件的时间。
+修改时间（ -mtime ）：文件内容最后一次被修改的时间。
+变化时间（ -ctime ）：文件元数据（例如权限或所有权）最后一次改变的时间。
+
+find . -type f -atime 7 -print  恰好七天前访问的文件
+find . -type f -atime -7 -print  七天内访问的文件
+find . -type f -atime +7 -print  超过七天访问的文件
+
+-amin （访问时间）; 分钟 find . -type f -amin +7 -print
+-mmin （修改时间）;
+-cmin （变化时间）;
+
+find . -type f -size 2k（等于）（-2k小于）（+2k大于）
+b —— 块（512字节）。
+c —— 字节。
+w —— 字（2字节）。
+k —— 1024字节。
+M —— 1024K字节。
+G —— 1024M字节
+
+find / -user bandit7 -group bandit7 -size 33c -ls 2>/dev/null 
+
+find . -type f -name "*.swp" -delete 删除后缀为swp的文件
+
+find . -type f -name "*.php" ! -perm 644 -print 查找644权限的文件
+
+find . -type f -user slynux -print 特定用户的文件 user可以是用户名或UID
+
+find . -type f -user root -exec chown slynux {} \;
+
+find . -type f -name "*.c" -exec cat {} \;>all_c_files.txt  find全部输出只有一个文件流stdin 多个文件流使用 >>重定向
+
+find . \( -name ".git" -prune \) -o \( -type f -print \) -prune排除（裁剪）".git"目录或文件
+find ./shell/ \( -name "*.sh" -prune \) -o \( -type f -print \) 查找 /shell目录下非.sh 的文件
+
+find ./shell/ \( -name "*.sh" -prune \) -o \( -type f -print \) | grep -c '.txt'  统计输出的文件中有多少 txt文件  
+
+grep -c '1' $(find ./shell/ \( -name "*.sh" -prune \) -o \( -type f -print \)) 统计查找的各个文件中 包含 ‘1’的数量
+
+【】find rename mv
+
+rename 'y/A-Z/a-z/' * 转换文件名的大小写
+find path -type f -name "*.mp3" -exec mv {} target_dir \;
+find path -type f -exec rename 's/ /_/g' {} \;
+
+
+【】ssh命令
+
+ssh原理和运用 http://www.ruanyifeng.com/blog/2011/12/ssh_port_forwarding.html
+
+ssh -i sshkey-private(此为私钥存储文件名) user@localhost  一般使用公私钥 登陆线上
+
+ssh -t -p 2220 bandit18@bandit.labs.overthewire.org /bin/sh 使用非交互式shell登陆 与交互式shell不同的是
+
+
+【】grep 命令
+
+-c(统计)/ -i(忽略大小写) /
+-n(加行号)/ -F(固定的字符串)
+ -f(从文件中获取正则表达式模式 一行一个模式通常配合-e选项) 
+
+-d ACTION(ACTION 可以是 read skip recurse（递归读取相当于-r）) 输入是一个目录  
+-D ACTION(ACTION 可以是 read(类似于读取二进制文件) skip ) 输入是一个设备、FIFO、 socket
+
+ -e(扩展正则表达式) egrep
+
+-o（只输出匹配部分 不输出一行中的其他字符） -s(禁止输出错误信息)
+-a(读取文本文件一样读取二进制文件)
+-v(显示与匹配相反的输出)
+ -r(递归读取目录)
+ -H(每个匹配项显示文件名)  -h(不显示文件名)
+ -l(只显匹配的文件名)/ -L(显式不匹配的文件名)/ 
+
+grep -e '^$' script.sh 查询文件的空白行   grep '^$' script.sh
+grep -F 'set -x' script.sh 查询脚本中的固定字符串
+grep "if" -r ./shell/
+
+grep "*" -a a.out 正常 grep "*" a.out 报错（读取二进制文件）
+
+【】 xxd 命令
+
+16 进制转储命令 https://zhuanlan.zhihu.com/p/24883064
+https://www.systutorials.com/docs/linux/man/1-xxd/
+
+【】 strings命令
+
+https://www.ibm.com/support/knowledgecenter/zh/ssw_aix_71/com.ibm.aix.cmds5/strings.htm 命令详解
+https://blog.csdn.net/stpeace/article/details/46641069 实际用途 查看某个特定文件 编译到那个库或执行文件
+
+【】nc,s_client, nmap命令
+
+nc http://www.tutorialspoint.com/unix_commands/nc.htm  https://blog.csdn.net/syh_486_007/article/details/52435191中文
+
+
+
+【】xargs命令   把从 stdin 接收到的数据重新格式化，再将其作为参数提供给其他命令。擅长将标准输入数据转换成【命令行参数】
+
+" "(空格)是默认的 替换符 '\n'默认界定符
+https://www.ibm.com/support/knowledgecenter/zh/ssw_aix_71/com.ibm.aix.cmds6/xargs.htm 命令行各种选项
+
+-t追踪选项  在命令运行前 显示各个命令   
+cat example.txt
+1 2 3 4 5 6
+7 8 9 10
+11 12
+
+cat example.txt | xargs   把 "\n" 替换为" "
+1 2 3 4 5 6 7 8 9 10 11 12
+
+cat example.txt | xargs -n 3  -n命令 每行最多3个参数
+1 2 3
+4 5 6
+7 8 9
+10 11 12
+
+echo "splitXsplitXsplitXsplit" | xargs -d X  -d定制的定界符
+split split split split
+
+
+[] xargs -i
+
+#!/bin/bash
+#sk.sh命令内容，打印出所有参数。
+echo $*
+arg.txt文件内容：
+
+cat arg.txt
+aaa
+bbb
+ccc
+
+cat arg.txt | xargs -I {} ./sk.sh -p {} -l
+输出
+-p aaa -l
+-p bbb -l
+-p ccc -l
+
+使用 -i运行多条命令
+
+cat foo.txt
+one
+two
+three
+
+cat foo.txt | xargs -I % sh -c 'echo %; mkdir %'
+one 
+two
+three
+
+ls 
+one two three
+
+
+
+find . -type f -name "*.txt" -print0 | xargs -0 rm -f   文件名中可能有" " 所以必须使用 '\0'来界定 (-0) 
+不是的话，hell a.txt 文件可能会被解析成 hell  a.txt两个文件
+
+find . -type f -name "*.c" -print0 | xargs -0 wc -l 打印所有c文件的行数
+
+find . -type f -name "*.sh" | xargs grep "if" (a.sh (\n) b.sh) xargs 转换成 grep 'if' a.sh b.sh
+
+
+【】chattr 和 lsattr 命令
+
+总结）Linux的chattr与lsattr命令详解
+http://www.ha97.com/5172.html
+
++ ：在原有参数设定基础上，追加参数。
+- ：在原有参数设定基础上，移除参数。
+= ：更新为指定参数设定。
+A：文件或目录的 atime (access time)不可被修改(modified), 可以有效预防例如手提电脑磁盘I/O错误的发生。
+S：硬盘I/O同步选项，功能类似sync。
+a：即append，设定该参数后，只能向文件中添加数据，而不能删除，多用于服务器日志文件安全，只有root才能设定这个属性。
+c：即compresse，设定文件是否经压缩后再存储。读取时需要经过自动解压操作。
+d：即no dump，设定文件不能成为dump程序的备份目标。
+i：设定文件不能被删除、改名、设定链接关系，同时不能写入或新增内容。i参数对于文件 系统的安全设置有很大帮助。
+j：即journal，设定此参数使得当通过mount参数：data=ordered 或者 data=writeback 挂 载的文件系统，文件在写入时会先被记录(在journal中)。如果filesystem被设定参数为 data=journal，则该参数自动失效。
+s：保密性地删除文件或目录，即硬盘空间被全部收回。
+u：与s相反，当设定为u时，数据内容其实还存在磁盘中，可以用于undeletion。
+各参数选项中常用到的是a和i。a选项强制只可添加不可删除，多用于日志系统的安全设定。而i是更为严格的安全设定，只有superuser (root) 或具有CAP_LINUX_IMMUTABLE处理能力（标识）的进程能够施加该选项。
+
+chattr命令修改属性能够提高系统的安全性，但是它并不适合所有的目录。chattr命令不能保护/、/dev、/tmp、/var目录。lsattr命令是显示chattr命令设置的文件属性。
+
+【】cut命令
+cut是一个选取命令，就是将一段数据经过分析，取出我们想要的。一般来说，选取信息通常是针对“行”来进行分析的，并不是整篇信息分析的。
+
+（1）其语法格式为：
+cut  [-bn] [file] 或 cut [-c] [file]  或  cut [-df] [file]
+
+使用说明
+cut 命令从文件的每一行剪切字节、字符和字段并将这些字节、字符和字段写至标准输出。
+如果不指定 File 参数，cut 命令将读取标准输入。必须指定 -b、-c 或 -f 标志之一。
+
+主要参数
+-b ：以字节为单位进行分割。这些字节位置将忽略多字节字符边界，除非也指定了 -n 标志。
+-c ：以字符为单位进行分割。
+-d ：自定义分隔符，默认为制表符。
+-f  ：与-d一起使用，指定显示哪个区域。
+-n ：取消分割多字节字符。仅和 -b 标志一起使用。如果字符的最后一个字节落在由 -b 标志的 List 参数指示的<br />范围之内，该字符将被写出；否则，该字符将被排除。
+
+https://www.cnblogs.com/dong008259/archive/2011/12/09/2282679.html 很详细
+
+【】comm
+
+
+【】diff
+diff -Naur directory1 directory2
+上面命令中出现的选项含义如下。
+
+-N ：将所有缺失的文件视为空文件。
+-a ：将所有文件视为文本文件。
+-u ：生成一体化输出。
+-r ：遍历目录下的所有文件
+
+
+【】 pushd 和 popd 进行快速定位
+
+当涉及3个以上的目录时，可以使用 pushd 和 popd 。
+但是如果只涉及两个位置的时候 cd - 切换为上一目录
+
+(1)
+压入并切换路径：
+~ $ pushd /var/www
+现在，栈中包含了 /var/www  ~，当前目录切换到 /var/www。
+
+(2) 再压入下一个目录路径：
+/var/www $ pushd /usr/src
+现在栈中包含 /usr/src /var/www  ~，当前目录为 /usr/src。
+
+(3) 用下面的命令查看栈内容：
+$ dirs
+/usr/src /var/www  ~  /usr/share /etc
+   0        1      2      3       4
+
+(4) 当你想切换到列表中任意一个路径时，将每条路径从0到n进行编号，然后使用你希
+望切换到的路径编号，例如：
+$ pushd +3
+这条命令会将栈进行翻转并切换到目录 /use/share。  举例 /shell/gawk  ~  ~  ~/shell 变为 ~/shell ~/shell/gawk ~ ~
+pushd 总是将路径添加到栈。如果要从栈中删除路径，可以使用 popd 。
+
+(5) 要删除最后添加的路径并把当前目录更改为上一级目录，可以使用以下命令：
+$ popd
+假设现在栈包含 /usr/src /var/www ~ /usr/share /etc，当前目录是 /usr/share，popd会将
+栈更改为 /var/www ~ /usr/share /etc，并且把目录切换到/var/www。
+
+(6) 用 popd +num 可以从列表中移除特定的路径。
+num 是从左到右，从0到n开始计数的。
+
+
+【】 crypt gpg  base64 md5sum sha1sum
+
+
+【】file 命令
+
+-b(输出中不输出文件名) -f(文件中包含需要传入的文件名 一行一个) -F(作为文件名和结果间的特殊分割符 file -F "!" 1.txt 
+输出：1.txt! ASCII text)
+
+【】nmap 命令 端口扫描
+https://nmap.org/man/zh/  中文文档
+
+https://nmap.org/bennieston-tutorial/ 常用选项详解
+
+
+【】tr命令 字符替换  只支持ascii字符
+
+"起始字符-终止字符" 'ABD-}' 'aA.,' 、 'a-ce-x' 以及 'a-c0-9'都合法 
+"起始字符-终止字符"不是一个连续的字符序列，那么它就会被视为包含了3个元素的集合，也就是：起始字符，-，终止字符。
+
+echo "HELLO WHO IS THIS" | tr 'A-Z' 'a-z'  把A-Z的大写字母换成 a-z的小写
+hello who is this
+
+echo 12345 | tr '0-9' '9876543210' 只支持顺序 不支持逆序
+87654
+
+ROT13算法
+echo "tr came, tr saw, tr conquered." | tr 'a-zA-Z' 'n-za-mN-ZA-M'
+
+echo "Hello 123 world 456" | tr -d '0-9'  -d删除
+Hello world
+
+tr -c [set1] [set2]  set1 的补集意味着这个集合中包含 set1 中没有的所有字符。(有set1和set2 两个补集)
+
+$ echo hello 1 char 2 next 4 | tr -d -c '0-9 \n' 输入文本中将不在补集中的所有字符全部删除
+1 2 4
+
+echo "GNU is not UNIX. Recursive right ?" | tr -s ' '  -s删除连续重复的字符
+GNU is not UNIX. Recursive right ?
+
+cat sum.txt
+1
+2
+3
+4
+5
+$ cat sum.txt | echo $[ $(tr '\n' '+' ) 0 ]  会产生echo $[ 1+2+3+4+5+0 ]
+15
+
+cat multi_blanks.txt | tr -s '\n'  删除多余的换行
+
+
+还可以选择合适的字符  举例tr '[:digit:]'
+alnum ：字母和数字。
+alpha ：字母。
+cntrl ：控制（非打印）字符。
+digit ：数字。
+graph ：图形字符。
+lower ：小写字母。
+print ：可打印字符。
+punct ：标点符号。
+space ：空白字符。
+upper ：大写字母。
+xdigit ：十六进制字符。
+
+
+【】sort 命令 和 uniq命令(提取文本或stdin中唯一的行 要求必须排序)
+
+ sort file1.txt file2.txt > sorted.txt  或是 sort file1.txt file2.txt -o sorted.txt
+
+sort -n file.txt 按数字顺序  -r 逆序  -M 按月份 
+sort -m file1.txt file2.txt 合并两个已排序的文件
+
+sort file1.txt file2.txt | uniq 已排序文件中不重复的行
+
+cat data.txt
+1 mac 2000
+2 winxp 4000
+3 bsd 1000
+4 linux 1000
+好
+sort -nrk 1 data.txt
+4 linux 1000
+3 bsd 1000
+2 winxp 4000
+1 mac 2000
+# -nr 表明按照数字，采用逆序形式排序
+
+#  依据第2 列进行排序
+$ sort -k 2 data.txt
+3 bsd 1000
+4 linux 1000
+1 mac 2000
+2 winxp 4000
+
+
+sort -n -k 2,2 data.txt 第一列按第三个字符排序（0,1,2开始）
+
+
+【】split命令
+
+split -b 10k data.file -d -a 4
+ 
+-l 10 表示每个分割文件只有10行
+-d数字作为后缀 -a 4 表示后缀的长度
+k(KB) M(MB)、G(GB）、 c(byte)、 w(word)
+
+
+【】csplit命令
+
+cat server.log
+SERVER-1
+[connection] 192.168.0.1 success
+[connection] 192.168.0.2 failed
+[disconnect] 192.168.0.3 pending
+[connection] 192.168.0.4 success
+SERVER-2
+[connection] 192.168.0.1 failed
+[connection] 192.168.0.2 failed
+[disconnect] 192.168.0.3 success
+[connection] 192.168.0.4 failed
+SERVER-3
+[connection] 192.168.0.1 pending
+[connection] 192.168.0.2 pending
+[disconnect] 192.168.0.3 pending
+[connection] 192.168.0.4 failed
+
+日志文件分割成server1.log、server2.log和server3.log
+
+csplit server.log /SERVER/ -n 2 -s {*} -f server -b "%02d.log" ; rm server00.log
+分割成
+server01.log server02.log server03.log server.log
+
+有关这个命令的详细说明如下。
+?  /SERVER/ 用来匹配某一行，分割过程即从此处开始。
+?  /[REGEX]/ 表示文本样式。包括从当前行（第一行）直到（但不包括）包含"SERVER"
+的匹配行。
+?  {*} 表示根据匹配重复执行分割，直到文件末尾为止。可以用{整数}的形式来指定分割执
+行的次数。
+?  -s 使命令进入静默模式，不打印其他信息。
+?  -n 指定分割后的文件名后缀的数字个数，例如01、02、03等。
+?  -f 指定分割后的文件名前缀（在上面的例子中，server就是前缀）。
+?  -b 指定后缀格式。例如 %02d.log ，类似于C语言中 printf 的参数格式。在这里文件名=
+前缀+后缀= server + %02d.log 
+
+
+【】date命令 获取日期时间
+
+【】unique
+
+【】time命令 获取执行时间
+
+【】IFS内容分段分隔符
+1.空格 2.制表符 3.换行符
+IFS=$'\n'
+
+tip:一般这么使用
+	IFS.OLD=$IFS
+	IFS=$'\n'
+	<在代码中使用新的IFS值>
+	IFS=$IFS.OLD
+
+
+
+
+【】sed 编辑器命令
+
+sed options script file
+
+echo "This is a good dog" | sed -e 's/dog/cat/; s/good/best/' This is a best cat
+
+sed -e 's/dog/cat/; s/good/best/' data.txt  s命令 替换标记
+echo "This is a good dog" | sed -n -e 's/dog/cat/; s/good/best/' 不会产生输出（-n）
+
+-f选项 sed命令存放在文件中
+cat script1.sed
+s/brown/green/
+s/fox/elephant/
+s/dog/cat/
+
+sed -f script1.sed data1.txt
+
+
+s/pattern/replacement/flags
+有4种可用的替换标记：
+数字，表明新文本将替换第几处模式匹配的地方；
+g ,表明新文本将会替换所有匹配的文本； 1g 2g 3g 第一处匹配开始匹配 后边类似
+p ,表明原先行的内容要打印出来；
+w file ,将替换的结果写到文件中  sed -n '/Browncoat/w Browncoats.txt' data11.txt
+r file   sed '/test/r file' filename 读取file文件中 匹配到test的行
+y 变形命令 sed '1,10y/abcde/ABCDE/' file 正则表达式不可以使用
+
+[]打印奇数行 偶数行
+
+sed -n 'p;n' test.txt  #奇数行
+sed -n 'n;p' test.txt  #偶数行
+方法2：
+sed -n '1~2p' test.txt  #奇数行
+sed -n '2~2p' test.txt  #偶数行
+
+
+cat data4.txt
+This is a test of the test script.
+This is the second test of the test script.
+
+[]
+sed 's/test/trial/2' data4.txt
+This is a test of the trial script.
+This is the second test of the trial script.
+
+
+cat data5.txt
+This is a test line.
+This is a different line.
+
+[]sed -n 's/test/trial/p' data5.txt   sed 's/test/trial/p' data5.txt  -n 和-p一般配合使用
+This is a trial line.                 This is a trial line.
+                                      This is a trial line.c
+
+[]sed 's/test/trial/w test.txt' data5.txt
+
+
+[]sed替换路径  sed 's/\/bin\/bash/\/bin\/csh/' /etc/passwd
+sed 's!/bin/bash!/bin/csh!' /etc/passwd
+
+
+[]sed 数字方式的行寻址 将文本行第一行命为1
+
+sed '2s/dog/cat/' data1.txt
+The quick brown fox jumps over the lazy dog
+The quick brown fox jumps over the lazy cat
+The quick brown fox jumps over the lazy dog
+The quick brown fox jumps over the lazy dog
+
+sed '2,3s/dog/cat/' data1.txt
+The quick brown fox jumps over the lazy dog
+The quick brown fox jumps over the lazy cat
+The quick brown fox jumps over the lazy cat
+The quick brown fox jumps over the lazy dog
+
+sed '2,$s/dog/cat/' data1.txt
+The quick brown fox jumps over the lazy dog
+The quick brown fox jumps over the lazy cat
+The quick brown fox jumps over the lazy cat
+The quick brown fox jumps over the lazy cat
+
+[]sed删除命令  没有真正删除只是删除输出
+
+sed '2,$d' data1.txt 删除第2行到最后一行  【行数可以为 2 也可以是 /number 2/ 】下同
+sed 'd' data1.txt  删除所有行
+sed '2,3d' data1.txt 删除第2，3行
+sed '2d' data1.txt   删除第2行
+
+sed '/1/,/3/d' data6.txt  删除 第1行3行中间的行 包括 1,3
+
+echo "Test Line 2" | sed 'i\Test Line 1' 插入命令放在文本流的前边
+sed '3i\This is an inserted line.' data.txt 第三行
+sed '$i\This is a new line of text.' data.txt 最后一行
+
+echo "Test Line 2" | sed 'a\Test Line 1' 追加命令放在文本流的后边
+sed '3a\This is an inserted line.' data.txt
+sed '$a\This is a new line of text.' data.txt
+
+sed '3c\This is a changed line of text.' data.txt 修改第三行
+
+sed '2,3c\This is a new line of text.' data.txt  一行数据替换两行文本
+This is line number 1.
+This is a new line of text.
+This is line number 4.
+
+命令（ y ）是唯一可以处理单个字符的sed编辑器命令   [address]y/inchars/outchars/
+echo "This 1 is a test of 1 try." | sed 'y/123/456/'
+This 4 is a test of 4 try.
+
+[] sed 打印命令
+
+p 命令用来打印文本行；
+等号（ = ）命令用来打印行号；
+l （小写的L）命令用来列出行
+
+
+[] sed读取和写入
+cat data11.txt
+Blum, R Browncoat
+McGuiness, A Alliance
+Bresnahan, C Browncoat
+Harken, C Alliance
+
+sed -n '/Browncoat/w Browncoats.txt' data11.txt
+
+cat Browncoats.txt
+Blum, R Browncoat
+Bresnahan, C Browncoat
+
+sed '3r data12.txt' data6.txt 读取data12中的所有文件到 data6数据的第三行之后
+
+[]sed 命令LIST占位符
+
+cat notice.std
+Would the following people:
+LIST
+please report to the ship's captain.
+
+sed '/LIST/{
+r data11.txt 
+d
+}' notice.std
+
+Would the following people:
+Blum, R Browncoat
+McGuiness, A Alliance
+Bresnahan, C Browncoat
+Harken, C Alliance
+please report to the ship's captain.
+
+
+[]sed 多行命令  处理被行隔开的短语
+
+N ：将数据流中的下一行加进来创建一个多行组（multiline group）来处理。
+D ：删除多行组中的一行。
+P ：打印多行组中的一行
+
+[] sed next命令 -n   next 命令会将sed工作流移动到数据流中的下一文本行
+
+cat data1.txt
+This is the header line.
+
+This is a data line.
+
+This is the last line.
+
+sed '/^$/d' data1.txt 删除空白行
+输出：
+This is the header line.
+This is a data line.
+This is the last line.
+
+sed '/header/{n,d}' data1.txt
+输出：
+This is the header line.
+This is a data line.
+
+This is the last line.
+
+sed 's/System Administrator/Desktop User/;N;s/System\nAdministrator/Desktop\nUser/' data4.txt
+
+
+[]  模式空间（pattern space）是一块活跃的缓冲区，还有保持空间（hold space）的缓冲区域。在处理模式空间中的某些行时，
+可以用保持空间来临时保存一些行
+  h  将模式空间复制到保持空间
+  H  将模式空间附加到保持空间
+  g  将保持空间复制到模式空间
+  G  将保持空间附加到模式空间
+  x  交换模式空间和保持空间的内容
+
+
+[] !（negate）排除命令
+$表示数据流中的最后一行文本
+
+sed -n '{1!G ; h ; $p }' data2.txt 翻转文本文件的行 tac命令也可以
+
+
+[]sed 分支
+
+[ address ]b [ label ]
+address 参数决定了哪些行的数据会触发分支命令。 label 参数定义了要跳转到的位置。如果没有加 label 参数，跳转命令会跳转到脚本的结尾
+
+分支标签的使用
+sed '{/first/b jump1 ;s/This is/Is this/; :jump1 s/This is/isthis/}' data.txt 
+Is this the header line.
+isthis the first data line.
+Is this the second data line.
+Is this the last line.
+
+sed '{/first/b jump1 ;s/This is/Is this/;:jump1;s/line./test?/}' data.txt
+Is this the header test?
+This is the first data test?
+Is this the second data test?
+Is this the last test?
+
+
+使用标签运行的循环
+sed '{/first/b jump1 ;s/This is/Is this/; :jump1 s/This is/isthis/}' data.txt
+echo "This, is, a, test, to, remove, commas." | sed '{:start s/,//1p;b start}'
+This is, a, test, to, remove, commas.
+This is a, test, to, remove, commas.
+This is a test, to, remove, commas.
+This is a test to, remove, commas.
+This is a test to remove, commas.
+This is a test to remove commas.
+^C
+
+echo "This, is, a, test, to, remove, commas." | sed '{:start s/,//1p ; /,/b start }'（sed -n '{:start s/,//1p ; /,/b start }' 可以去掉最后一行）
+This is, a, test, to, remove, commas.
+This is a, test, to, remove, commas.
+This is a test, to, remove, commas.
+This is a test to, remove, commas.
+This is a test to remove, commas.
+This is a test to remove commas.
+This is a test to remove commas.
+
+[] sed test命令
+
+测试命令使用与分支命令相同的格式。
+[ address ]t [ label ]  替换命令成功匹配并替换了一个模式，测试命令就会跳转到指定的标签
+
+跟分支命令一样，在没有指定标签的情况下，如果测试成功，sed会跳转到脚本的结尾
+
+sed '{ s/first/matched/;t s/This is the/No match on/}' data2.txt 如果有一个替换成功就不需要有第二个 简单的 if then
+No match on header line
+This is the matched data line
+No match on second data line
+No match on last line
+
+[] sed 模式命令
+
+& 符号可以用来代表替换命令中的匹配的模式 &符号会提取匹配替换命令中指定模式的整个字符串
+echo "The cat sleeps in his hat." | sed 's/.at/"&"/g'
+The "cat" sleeps in his "hat".
+
+
+第一个子模式分配字符 \1 ，给第二个子模式分配字符 \2
+一对圆括号将单词System括起来，将其标示为一个子模式。然后它在替代模式中使用 \1 来提取第一个匹配的子模式
+echo "The System Administrator manual" | sed 's/\(System\) Administrator/\1 User/'
+The System User manual
+
+echo "That furry hat is pretty" | sed 's/furry \(.at\)/\1/'
+That hat is pretty
+
+[]加倍行距
+sed 'G' data2.txt
+This is the header line.
+This is the first data line.
+This is the second data line.
+This is the last line.
+
+可能含有空白行的文本中加倍行距
+sed '/^$/d ; $!G' data6.txt
+
+给文本增加行号
+ sed '=' data2.txt | sed 'N; s/\n/ /'   或是 sed '=' data2.txt | sed '{N; s/\([0-9]\)\n/\1 /}'  或是 sed '/./,/^$/!d' data2.txt
+1 This is the header line.
+2 This is the first data line.
+3 This is the second data line.
+4 This is the last line.
+
+
+
+
+【】gwak编辑器命令
+
+gawk options program file
+
+-F fs        指定行中划分数据字段的字段分隔符
+-f file      从指定的文件中读取程序
+-v var=value 定义gawk程序中的一个变量及其默认值
+-mf N        指定要处理的数据文件中的最大字段数
+-mr N        指定数据文件中的最大数据行数
+-W keyword   指定gawk的兼容模式或警告等级
+
+脚本命令放到两个花括号({})中
+
+gawk '{print "Hello World!"}'
+
+自动给一行中的每个数据元素分配一个变量
+$0 代表整个文本行；
+$1 代表文本行中的第1个数据字段；
+$2 代表文本行中的第2个数据字段；
+$n 代表文本行中的第n个数据字段
+
+gawk -F: '{print $1}' /etc/passwd
+输出实例
+root
+bin
+daemon
+adm
+
+echo "My name is Rich" | gawk '{$4="Christine"; print $0}'
+
+BEGIN 在命令运行前运行 
+END 在脚本运行后运行
+
+gawk 'BEGIN {print "The data3 File Contents:"}
+> {print $0}
+> END {print "End of File"}' data3.txt
+
+文件脚本命令
+cat script4.gawk
+BEGIN {
+print "The latest list of users and shells"
+print " UserID \t Shell"
+print "-------- \t -------"
+FS=":"
+}
+{
+print $1 " \t " $7 （******）
+}
+END {
+print "This concludes the listing"
+
+
+【】正则表达式
+
+正则表达式 区分大小写
+echo 'This is a test' | sed -n '/test/p'  echo 'This is a test' | gawk '/test/{print $0}'
+echo 'This is a test' | sed -n '/this/p' 不能识别  
+
+文本匹配 
+正斜线（/） 和 反斜线（\）(\$) ( \( ) ( \) )需要转义 echo '2 / 2' | sed -n '////p'    echo '2 \ 2' | sed -n '/\//p' 
+
+特殊字符.*[]^${}\+?|()
+
+gawk --re-intreval '/[0-9]{2}/{print $0}' 出现正则表达式{2}的时候需要使用 --re-interval
+
+FIELDWIDTHS 由空格分隔的一列数字，定义了每个数据字段确切宽度
+FS 输入字段分隔符
+RS 输入记录分隔符
+OFS 输出字段分隔符
+ORS 输出记录分隔符
+
+
+cat data1
+data11,data12,data13,data14,data15
+data21,data22,data23,data24,data25
+data31,data32,data33,data34,data35
+
+gawk 'BEGIN{FS=","; OFS="-"} {print $1,$2,$3}' data1
+data11-data12-data13
+data21-data22-data23
+data31-data32-data33
+
+
+
+【】bash shell 的内建命令 
+
+shopt  显示和设置shell选项
+let 简单的算术命令
+fc    修改历史命令并执行
+alias   创建代表文本字符串的别名字符串
+bg     以后台模式继续执行指定的作业
+cd    切换到指定的目录
+echo  显示文本字符串和环境变量
+eval  将所有参数用空格连起来 ①
+exec  用指定命令替换shell进程
+exit   终止shell进程
+export  导出指定的环境变量，供子shell使用
+fg   以前台模式继续执行指定的作业
+getopts  从参数列表中中提取选项和参数
+hash   维护并提取最近执行的命令及其位置的哈希表
+pwd    显示当前工作目录
+read     从 STDIN 读取一行并将其赋给一个变量
+readonly 从 STDIN 读取一行并赋给一个只读变量
+printf 用格式化字符串显示文本和变量
+set    列出或设置选项标记和环境变量
+shift 按指定的次数移动位置参数
+test  测试一个表达式，成立的话返回 0 ，不成立的话返回 1
+times 显示当前shell和所有shell进程的累计用户时间和系统时间
+trap  在shell收到某个指定信号时解析并执行命令
+type   解释指定的名称并显示结果（别名、内建、命令或关键字）
+ulimit 查询或设置进程限制
+umask  设置文件和目录的默认权限
+unalias 删除指定的别名
+
+
+ls -lS --time-style=long-iso 文件按字节从大到小排序
+
+
+

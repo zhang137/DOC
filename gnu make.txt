@@ -1,0 +1,774 @@
+ make解析Makefile顺序
+GNU make parses makefiles line-by-line. Parsing proceeds using the following steps:
+1 Read in a full logical line, including backslash-escaped lines (see Splitting Long Lines).
+2 Remove comments (see What Makefiles Contain).
+3 If the line begins with the recipe prefix character and we are in a rule context, add the line to the current recipe and read the next line (see Recipe Syntax).
+4 Expand elements of the line which appear in an immediate expansion context (see How make Reads a Makefile).
+5 Scan the line for a separator character, such as ‘:’ or ‘=’, to determine whether the line is a macro assignment or a rule (see Recipe Syntax).
+6 Internalize the resulting operation and read the next line
+
+make的工作方式
+GNU的make工作时的执行步骤如下：（想来其它的make也是类似）
+1 读入所有的Makefile。
+2 读入被include的其它Makefile。
+3 初始化文件中的变量。
+4 推导隐晦规则，并分析所有规则。
+5 为所有的目标文件创建依赖关系链。
+6 根据依赖关系，决定哪些目标要重新生成。执行生成命令。
+
+1-5步为第一个阶段，6-7为第二个阶段。
+第一个阶段中，如果定义的变量被使用了，那么，make会把其展 开在使用的位置。
+但make并不会完全马上展开，make使用的是拖延战术，如果变量出现在依赖关系的规则中，
+那么仅当这条依赖被决定要使用了，变量才会在其内部展开。
+
+
+添加搜索目录
+VPATH: Search Path for All Prerequisites
+The value of the make variable VPATH specifies a list of directories that make should search. 
+Most often, the directories are expected to contain prerequisite files that are not in the current directory;
+ however, make uses VPATH as a search list for both prerequisites and targets of rules.
+Thus, if a file that is listed as a target or prerequisite does not exist in the current directory, 
+make searches the directories listed in VPATH for a file with that name. 
+
+In the VPATH variable, directory names are separated（分隔） by colons（冒号） or blanks（空格）. 
+The order in which directories are listed is the order followed by make in its search. 
+(On MS-DOS and MS-Windows, semi-colons are used as separators of directory names in VPATH,
+ since the colon can be used in the pathname itself, after the drive letter.)
+
+For example,
+VPATH = src:../headers （拥有两个目录）  
+specifies a path containing two directories, src and ../headers, which make searches in that order.
+
+make的默认工作方式  https://seisman.github.io/how-to-write-makefile/introduction.html  跟我一起写Makefile
+在默认的方式下，也就是我们只输入 make 命令。那么，
+make会在当前目录下找名字叫“Makefile”或“makefile”的文件。
+如果找到，它会找文件中的第一个目标文件（target），在上面的例子中，他会找到“edit”这个 文件，并把这个文件作为最终的目标文件。
+如果edit文件不存在，或是edit所依赖的后面的 .o 文件的文件修改时间要比 edit 这个 文件新，那么，他就会执行后面所定义的命令来生成 edit 这个文件。
+如果 edit 所依赖的 .o 文件也不存在，那么make会在当前文件中找目标为 .o 文件 的依赖性，如果找到则再根据那一个规则生成 .o 文件。（这有点像一个堆栈的过程）
+当然，你的C文件和H文件是存在的啦，于是make会生成 .o 文件，然后再用 .o 文件生 成make的终极任务，也就是执行文件 edit 了。
+
+Makefile 通配符
+A single file name can specify many files using wildcard characters.
+The wildcard characters in make are ‘*’, ‘?’ and ‘[…]’, the same as in the Bourne shell. 
+For example, *.c specifies a list of all the files (in the working directory) whose names end in ‘.c’.
+
+The character ‘~’ at the beginning of a file name also has special significance. 
+If alone, or followed by a slash, it represents your home directory.
+For example ~/bin expands to /home/you/bin.
+If the ‘~’ is followed by a word, the string represents the home directory of the user named by that word. 
+For example ~john/bin expands to /home/john/bin. 
+On systems which don’t have a home directory for each user (such as MS-DOS or MS-Windows), 
+this functionality can be simulated by setting the environment variable HOME.
+
+Makefile生成规则
+Rule Syntax
+In general, a rule looks like this:
+targets : prerequisites
+        recipe
+        …
+
+or like this:
+targets : prerequisites ; recipe
+        recipe |
+recipe）<--|
+make解析之后交给 shell解析
+This is one or more lines to be executed by the shell (normally ‘sh’)
+Normally make prints each line of the recipe before it is executed
+
+make 变量
+$() 与 ${} 没区别  
+***********************
+$$var 表示shell 变量
+Variable and function references in recipes have identical syntax and semantics to references elsewhere in the makefile.
+They also have the same quoting rules: if you want a dollar sign to appear in your recipe, you must double it (‘$$’).
+For shells like the default shell, that use dollar signs to introduce variables, 
+it’s important to keep clear in your mind whether 
+the variable you want to reference is 
+
+*）a make variable (use a single dollar sign $) or
+**）a shell variable (use two dollar signs $$).
+
+ For example:
+LIST = one two three
+all:
+        for i in $(LIST); do \
+            echo $$i; \
+        done
+results in the following command being passed to the shell:
+
+for i in one two three; do \
+    echo $i; \
+done
+which generates the expected result:
+
+one
+two
+three
+
+策略的执行----Recipe Execution
+When it is time to execute recipes to update a target, they are executed by invoking a new sub-shell for each line of the recipe,
+unless the .ONESHELL special target is in effect (see Using One Shell) (In practice, make may take shortcuts that do not affect the results.)
+
+Please note: this implies that setting shell variables and invoking shell commands such as cd that 
+set a context local to each process will not affect the following lines in the recipe.2
+If you want to use cd to affect the next statement, put both statements in a single recipe line.
+Then make will invoke one shell to run the entire line, and the shell will execute the statements in sequence. For example:
+
+foo : bar/lose
+        cd $(<D) && gobble $(<F) > ../$@
+
+Here we use the shell AND operator (&&) so that if the cd command fails, 
+the script will fail without trying to invoke the gobble command in the wrong directory, 
+which could cause problems (in this case it would certainly cause ../foo to be truncated, at least).
+
+
+Using One Shell
+Sometimes you would prefer that all the lines in the recipe be passed to a single invocation of the shell. There are generally two situations where this is useful: first, it can improve performance in makefiles where recipes consist of many command lines, by avoiding extra processes. Second, you might want newlines to be included in your recipe command (for example perhaps you are using a very different interpreter as your SHELL). If the .ONESHELL special target appears anywhere in the makefile then all recipe lines for each target will be provided to a single invocation of the shell. Newlines between recipe lines will be preserved. For example:
+
+.ONESHELL:
+foo : bar/lose
+        cd $(@D)
+        gobble $(@F) > ../$@
+would now work as expected even though the commands are on different recipe lines.
+
+If .ONESHELL is provided, then only the first line of the recipe will be checked for the special prefix characters (‘@’, ‘-’, and ‘+’).
+ Subsequent lines will include the special characters in the recipe line when the SHELL is invoked. 
+If you want your recipe to start with one of these special characters you’ll need to arrange for them to not be the first characters on the first line, 
+perhaps by adding a comment or similar. For example, this would be a syntax error in Perl because the first ‘@’ is removed by make:
+
+.ONESHELL:
+SHELL = /usr/bin/perl
+.SHELLFLAGS = -e
+show :
+        @f = qw(a b c);
+        print "@f\n";
+However, either of these alternatives would work properly:
+
+.ONESHELL:
+SHELL = /usr/bin/perl
+.SHELLFLAGS = -e
+show :
+        # Make sure "@" is not the first character on the first line
+        @f = qw(a b c);
+        print "@f\n";
+or
+
+.ONESHELL:
+SHELL = /usr/bin/perl
+.SHELLFLAGS = -e
+show :
+        my @f = qw(a b c);
+        print "@f\n";
+
+As a special feature, if SHELL is determined to be a POSIX-style shell, the special prefix characters in “internal” recipe lines will be removed before the recipe is processed. 
+This feature is intended to allow existing makefiles to add the .ONESHELL special target and still run properly without extensive modifications. 
+Since the special prefix characters are not legal at the beginning of a line in a POSIX shell script this is not a loss in functionality. For example, this works as expected:
+
+.ONESHELL:
+foo : bar/lose
+        @cd $(@D)
+        @gobble $(@F) > ../$@
+
+Even with this special feature, however, makefiles with .ONESHELL will behave differently in ways that could be noticeable. For example, normally if any line in the recipe fails, 
+that causes the rule to fail and no more recipe lines are processed. Under .ONESHELL a failure of any but the final recipe line will not be noticed by make. 
+You can modify .SHELLFLAGS to add the -e option to the shell which will cause any failure anywhere in the command line to cause the shell to fail, 
+but this could itself cause your recipe to behave differently. Ultimately you may need to harden your recipe lines to allow them to work with .ONESHELL.
+
+选择一个shell----Choosing the Shell
+The program used as the shell is taken from the variable SHELL. If this variable is not set in your makefile, the program /bin/sh is used as the shell. 
+The argument(s) passed to the shell are taken from the variable .SHELLFLAGS. The default value of .SHELLFLAGS is -c normally, or -ec in POSIX-conforming mode.
+Unlike most variables, the variable SHELL is never set from the environment. This is because the SHELL environment variable is used to specify your personal choice of shell program for interactive use.
+It would be very bad for personal choices like this to affect the functioning of makefiles. See Variables from the Environment.
+Furthermore, when you do set SHELL in your makefile that value is not exported in the environment to recipe lines that make invokes. 
+Instead, the value inherited from the user’s environment, if any, is exported. 
+You can override this behavior by explicitly exporting SHELL (see Communicating Variables to a Sub-make), 
+forcing it to be passed in the environment to recipe lines.
+
+
+递归使用make ---Recursive Use of make
+Recursive use of make means using make as a command in a makefile.
+This technique is useful when you want separate makefiles for various subsystems that compose a larger system. 
+For example, suppose you have a sub-directory subdir which has its own makefile,
+and you would like the containing directory’s makefile to run make on the sub-directory. You can do it by writing this:
+
+subsystem:
+        cd subdir && $(MAKE)
+
+or, equivalently, this (see Summary of Options):
+
+subsystem:
+        $(MAKE) -C subdir
+
+
+$MAKE $MAKEFIAGS export  上一级 make 和 sub-make 通信
+subsystem:
+        cd subdir && $(MAKE) MAKEFLAGS=
+subsystem:
+        cd subdir && $(MAKE) $(MYLAGS)
+
+As a convenience, you can define a variable and export it at the same time by doing:
+
+export variable = value
+
+has the same result as:
+
+variable = value
+export variable
+
+and
+
+export variable := value
+
+has the same result as:
+
+variable := value
+export variable
+
+Likewise,
+
+export variable += value
+
+is just like:
+
+variable += value
+export variable
+
+
+
+@ + - 符号
+They control the behaviour of make for the tagged command lines:
+@ suppresses the normal 'echo' of the command that is executed.
+When a line starts with ‘@’, the echoing of that line is suppressed. The ‘@’ is discarded before the line is passed to the shell.
+
+- means ignore the exit status of the command that is executed (normally, a non-zero exit status would stop that part of the build).
+
++ means 'execute this command under make -n' (or 'make -t' or 'make -q') when commands are not normally executed. See also the POSIX specification for make and also §9.3 of the GNU Make manual.
+
+The + notation is a (POSIX-standardized) generalization of the de facto (non-standardized) mechanism whereby a command line containing ${MAKE} or $(MAKE) is executed under make -n.
+
+(@ is discussed in §5.2 of the GNU Make manual; - is described in §5.5; and §5.7.1 mentions the use of +.)
+
+
+
+Automatic variables are set by make after a rule is matched. 
+They provide access to elements from the target and prerequisite lists so you don’t have to explicitly specify any filenames. 
+They are very useful for avoiding code duplication, but are critical when defining more general pattern rules.
+
+There are seven “core” automatic variables:
+
+$@: The filename representing the target.
+
+$%: The filename element of an archive member specification.
+
+$<: The filename of the first prerequisite.
+
+$?: The names of all prerequisites that are newer than the target, separated by spaces.
+
+$^: The filenames of all the prerequisites, separated by spaces. 
+This list has duplicate filenames removed since for most uses, such as compiling, copying, etc., duplicates are not wanted.
+
+$+: Similar to $^, this is the names of all the prerequisites separated by spaces,
+except that $+ includes duplicates. This variable was created for specific situations 
+such as arguments to linkers where duplicate values have meaning.
+
+$|
+The names of all the order-only prerequisites, with spaces between them.
+
+$*: The stem of the target filename. A stem is typically a filename without its suffix.
+ Its use outside of pattern rules is discouraged.
+
+%.xyz:
+        make $* clean
+
+Here, $* is an automatic variable which will expand to the stem of the target (the text matching the % in the pattern). 
+So, if you invoke make foobar.xyz, this rule would invoke make foobar clean: 
+it would run a sub-make, build the foobar target, then build the clean target.
+I've not seen anything quite like the above, although I can think of reasons for doing it.
+ Far more common would be if you mistyped the command and it really said make -C $* clean, giving a rule like this:
+
+%.xyz:
+        make -C $* clean
+
+(note you should never use the static string make when invoking a sub-make; 
+you should always use $(MAKE) or ${MAKE}  调用特殊的 make 递归子调用也会调用相同make). In this example running make foobar.xyz would run make -C foobar clean, 
+which means change to the directory foobar and run the clean target there
+
+
+‘$(@D)’
+The directory part of the file name of the target, with the trailing slash removed. If the value of ‘$@’ is dir/foo.o then ‘$(@D)’ is dir. This value is . if ‘$@’ does not contain a slash.
+
+‘$(@F)’
+The file-within-directory part of the file name of the target. If the value of ‘$@’ is dir/foo.o then ‘$(@F)’ is foo.o. ‘$(@F)’ is equivalent to ‘$(notdir $@)’.
+
+‘$(*D)’
+‘$(*F)’
+The directory part and the file-within-directory part of the stem; dir and foo in this example.
+
+‘$(%D)’
+‘$(%F)’
+The directory part and the file-within-directory part of the target archive member name. This makes sense only for archive member targets of the form archive(member) and is useful only when member may contain a directory name. (See Archive Members as Targets.)
+
+‘$(<D)’
+‘$(<F)’
+The directory part and the file-within-directory part of the first prerequisite.
+
+‘$(^D)’
+‘$(^F)’
+Lists of the directory parts and the file-within-directory parts of all prerequisites.
+
+‘$(+D)’
+‘$(+F)’
+Lists of the directory parts and the file-within-directory parts of all prerequisites, including multiple instances of duplicated prerequisites.
+
+‘$(?D)’
+‘$(?F)’
+Lists of the directory parts and the file-within-directory parts of all prerequisites that are newer than the target.
+
+
+$@      表示目标文件
+$(@D)   $@的目录部分
+$(@F)   $@的文件部分
+$%  表示静态库 .a 的成员
+$^  表示所有的依赖文件 不包含重复
+$<  表示第一个依赖文件
+$?  表示比目标还要新的依赖文件列表
+$+  表示所有的依赖文件 包含重复 这个变量是为特定的情况创建的，比如链接器的参数，其中重复的值有意义
+$*  
+
+In addition, each of the above variables has two variants for compatibility with other makes. 
+One variant returns only the directory portion of the value. 
+This is indicated by appending a “D” to the symbol, $(@D), $(<D), etc. 
+The other variant returns only the file portion of the value. 
+This is indicated by appending an “F” to the symbol, $(@F), $(<F), etc. 
+Note that these variant names are more than one character long and so must be enclosed in parentheses. 
+GNU make provides a more readable alternative with the dir and notdir functions.
+
+CXXFLAGS
+Extra flags to give to the C++ compiler.
+
+CPPFLAGS
+Extra flags to give to the 【C【 preprocessor 预编译器】 and programs that use it】 (the C and Fortran compilers)
+
+CFLAGS
+Extra flags to give to the C compiler.
+
+LDFLAGS  -L 设置共享库路径
+Extra flags to give to compilers when they are supposed to invoke the linker, ‘ld’, such as 【-L】. Libraries (-lfoo) should be added to the LDLIBS variable instead.
+
+LDLIBS -lcups
+Library flags or names given to compilers when they are supposed to invoke the linker, ‘ld’. LOADLIBES is a deprecated (but still supported) alternative to LDLIBS. Non-library linker flags, such as -L, should go in the LDFLAGS variable.
+
+DEFINES +=  -D BVS_DIRECTION=$(BVS_DIRECTION) \
+
+            -D BVS_LAYOUT=$(BVS_LAYOUT) \
+
+            -D $(BVS_TYPE)\
+
+AR
+Archive-maintaining program; default ‘ar’.
+
+AS
+Program for compiling assembly files; default ‘as’.
+
+ASFLAGS
+assembly flags
+
+CC
+Program for compiling C programs; default ‘cc’.
+
+CXX
+Program for compiling C++ programs; default ‘g++’.
+
+CPP
+Program for running the C preprocessor, with results to standard output; default ‘$(CC) -E’.
+
+RM
+Command to remove a file; default ‘rm -f’.
+
+
+
+【Functions That Control Make】
+
+These functions control the way make runs. Generally, they are used to provide information to the user of the makefile or to cause make to stop if some sort of environmental error is detected.
+
+$(error text…)
+Generates a fatal error where the message is text. Note that the error is generated whenever this function is evaluated. So, if you put it inside a recipe or on the right side of a recursive variable assignment, it won’t be evaluated until later. The text will be expanded before the error is generated.
+
+For example,
+
+ifdef ERROR1
+$(error error is $(ERROR1))
+endif
+will generate a fatal error during the read of the makefile if the make variable ERROR1 is defined. Or,
+
+ERR = $(error found an error!)
+
+.PHONY: err
+	err: ; $(ERR)
+will generate a fatal error while make is running, if the err target is invoked.
+
+$(warning text…)
+This function works similarly to the error function, above, except that make doesn’t exit. Instead, text is expanded and the resulting message is displayed, but processing of the makefile continues.
+
+The result of the expansion of this function is the empty string.
+
+$(info text…)
+This function does nothing more than print its (expanded) argument(s) to standard output. No makefile name or line number is added. The result of the expansion of this function is the empty string.
+
+Next: Guile Function, Previous: Make Control Functions, Up: Functions   [Contents][Index]
+
+【The shell Function】
+
+The shell function is unlike any other function other than the wildcard function (see The Function wildcard) in that it communicates with the world outside of make.
+
+The shell function performs the same function that backquotes (‘`’) perform in most shells: it does command expansion. This means that it takes as an argument a shell command and evaluates to the output of the command. The only processing make does on the result is to convert each newline (or carriage-return / newline pair) to a single space. If there is a trailing (carriage-return and) newline it will simply be removed.
+
+The commands run by calls to the shell function are run when the function calls are expanded (see How make Reads a Makefile). Because this function involves spawning a new shell, you should carefully consider the performance implications of using the shell function within recursively expanded variables vs. simply expanded variables (see The Two Flavors of Variables).
+
+After the shell function or ‘!=’ assignment operator is used, its exit status is placed in the .SHELLSTATUS variable.
+
+Here are some examples of the use of the shell function:
+
+contents := $(shell cat foo)
+sets contents to the contents of the file foo, with a space (rather than a newline) separating each line.
+
+files := $(shell echo *.c)
+sets files to the expansion of ‘*.c’. Unless make is using a very strange shell, this has the same result as ‘$(wildcard *.c)’ (as long as at least one ‘.c’ file exists).
+
+【makefile 不同的变量赋值】
+
+makefile $与$$  https://blog.csdn.net/darennet/article/details/8185881
+Makefile中可以通过$(var) 或者${var}的方式使用变量
+https://stackoverflow.com/questions/448910/what-is-the-difference-between-the-gnu-makefile-variable-assignments-a
+
+（1）  =  使用时展开赋值
+
+HELLO = world
+HELLO_WORLD = $(HELLO) world!
+
+# This echoes "world world!"
+echo $(HELLO_WORLD)
+
+HELLO = hello
+
+# This echoes "hello world!"
+echo $(HELLO_WORLD)
+
+（2）:= 分配时展开赋值
+
+HELLO = world
+HELLO_WORLD := $(HELLO) world!
+
+# This echoes "world world!"
+echo $(HELLO_WORLD)
+
+HELLO = hello
+
+# Still echoes "world world!"
+echo $(HELLO_WORLD)
+
+HELLO_WORLD := $(HELLO) world!
+
+# This echoes "hello world!"
+echo $(HELLO_WORLD)
+
+
+（3）Key?=Value  key不存在时赋值 
+
+
+（4）+= 追加赋值
+
+
+【makefile shell执行】
+SHELL=/bin/bash
+SHELLFLAGS= -c 
+默认(SHELL=/bin/sh SHELLFLAGS=-ec）
+/bin/sh == /bin/bash --posix
+
+
+
+The program used as the shell is taken from the variable SHELL. If this variable is not set in your makefile, the program /bin/sh is used as the shell. The argument(s) passed to the shell are taken from the variable .SHELLFLAGS. The default value of .SHELLFLAGS is -c normally, or -ec in POSIX-conforming mode.
+Unlike most variables, the variable SHELL is never set from the environment. This is because the SHELL environment variable is used to specify your personal choice of shell program for interactive use. It would be very bad for personal choices like this to affect the functioning of makefiles.
+
+【makefile定义自己的函数】
+定义
+define generate_file
+    sed 's/{NAME}/$(1)/' greetings.tmpl >$(2).txt
+endef
+
+调用
+all:
+    $(call generate_file,John Doe,101)
+    $(call generate_file,Peter Pan,102)
+
+define本质上是定义一个多行变量，可以在call的作用下当作函数来使用，在其它位置使用只能作为多行变量的使用
+https://blog.csdn.net/qq_28944301/article/details/82940852  自定义与预定义函数
+
+define 函数中打印变量 只能用 
+$(info ${test})
+$(info $(test))
+#$(info $(test)) 注释中也可以  其它输出字符串的函数都可以使用来输出字符串
+
+
+$(call <name_of_function>[, <param>][,<param>][,...]) ----调用规则
+
+【特殊符号】
+'@'  符号的使用
+      通常makefile会将其执行的命令行在执行前输出到屏幕上。如果将‘@’添加到命令行前，这个命令将不被make回显出来。
+      例如：@echo --compiling module----;  // 屏幕输出 --compiling module----
+                               echo --compiling module----;  // 没有@ 屏幕输出echo --compiling module----    
+
+' - ' 符号的使用
+     
+     通常删除，创建文件如果碰到文件不存在或者已经创建，那么希望忽略掉这个错误，继续执行，就可以在命令前面添加 -，
+     -rm dir；
+     -mkdir aaadir；
+果make执行时，带入make参数“-n”或“--just-print”，那么其只是显示命令，但不会执行命令，这个功能很有利于我们调试我们的Makefile，看看我们书写的命令是执行起来是什么样子的或是什么顺序的。 
+
+而make参数“-s”或“--slient”则是全面禁止命令的显示。
+
+$(@D)
+
+表示"$@"的目录部分（不以斜杠作为结尾） ，如果"$@"值是"dir/foo.o"，那么"$(@D)"就
+
+是"dir"，而如果"$@"中没有包含斜杠的话，其值就是"."（当前目录） 。
+
+$(@F)
+
+表示"$@"的文件部分，如果"$@"值是"dir/foo.o"，那么"$(@F)"就是"foo.o"，"$(@F)"相
+当于函数"$(notdir $@)"
+
+【打印变量的值 】
+
+1,使用info/warning/error增加调试信息
+
+方法1: $(info, "here add the debug info") 但是此不能打印出.mk的行号
+
+方法2: $(warning "here add the debug info") 可以打印行号
+   
+方法3: $(error "error: this will stop the compile")
+     这个可以停止当前makefile的编译
+
+方法4: 打印变量的值
+      $(info $(TARGET_DEVICE) )
+      $(warning  $(XXX))
+
+2,使用echo增加调试信息（echo只能在target：后面的语句中使用，且前面是个TAB）
+方法1： @echo "start the compilexxxxxxxxxxxxxxxxxxxxxxx"
+
+方法2: @echo $(files)
+-----------------------------------------------------------------------------------
+
+【隐式规则】
+【一】
+%.o: %.c
+        $(CC) -c $(CFLAGS) $(CPPFLAGS) $< -o $@
+
+lib/%.o: lib/%.c
+        $(CC) -fPIC -c $(CFLAGS) $(CPPFLAGS) $< -o $@
+
+Since the target is ‘%’, this rule will apply to any file whatever,
+provided the appropriate prerequisite file exists.
+The double colon makes the rule terminal,
+which means that its prerequisite may not be an intermediate file (see Match-Anything Pattern Rules).
+
+正则表达式匹配
+the pattern rule:
+%.o: %.c foo.h
+        $(CC) -c $(CFLAGS) $(CPPFLAGS) -o $@ $<
+
+----------------------------------------------------------------------------------------
+
+【makefile 函数】
+
+$(addprefix prefix,names…)  给names 添加前缀  $(addprefix src/,foo bar)  foo bar 以一个空格结尾
+$(addsuffix prefix,names…)  给names 添加后缀  $(addsuffix .c,foo bar)  foo bar 以一个空格结尾
+
+$(basename names…) 去掉每一个以空格分隔names的的后缀 $(basename src/foo.c src-1.0/bar hacks) (产生结果 src/foo src-1.0/bar hacks) 
+$(suffix names…) 获取以每一个空格分隔的names的后缀 $(suffix src/foo.c src-1.0/bar.c hacks) 结果‘.c .c’
+$(notdir names…)  提取以空格分隔的每一个names的 非目录部分  $(notdir src/foo.c hacks) 结果‘foo.c hacks’
+$(dir names…)  提取以空格分隔的每一个names的目录部分  $(dir src/foo.c hacks) 结果‘src/ ./’
+$(join list1,list2) 把list1 的每一个追加到 list2 的每一个上   $(join a b,.c .o)’ produces ‘a.c b.o’
+$(wildcard pattern)  把pattern（正则表达式）中匹配的每一个已存在文件 以空格分隔返回 
+
+program_C_SRCS:=$(wildcard *.c) # 1 line
+program_C_OBJ:=$(program_C_SRCS:.c=.o) # 2 line
+
+$(realpath)  返回相对目录对应的 绝对目录 目录不存在不会返回  解决符号链接返回真实文件或目录
+$(abspath) 相对于realpath abspath并不解决符号链接 而且  不要求文件或目录已存在 does not resolve symlinks and does not require the file names to refer to an existing file or directory
+
+【条件函数】
+【if函数】
+$(if condition,then-part[,else-part])
+
+The if function provides support for conditional expansion in a functional context 
+(as opposed to the GNU make makefile conditionals such as ifeq (see Syntax of Conditionals).
+The first argument, condition, first has all preceding and trailing whitespace stripped, then is expanded.
+ If it expands to any non-empty string, then the condition is considered to be true. 
+If it expands to an empty string, the condition is considered to be false.
+If the condition is true then the second argument, then-part, 
+is evaluated and this is used as the result of the evaluation of the entire if function.
+If the condition is false then the third argument, else-part, is evaluated and this is the result of the if function.
+If there is no third argument, the if function evaluates to nothing (the empty string).
+Note that only one of the then-part or the else-part will be evaluated, never both.
+ Thus, either can contain side-effects (such as shell function calls, etc.)
+
+【or函数】
+$(or condition1[,condition2[,condition3…]])
+The or function provides a “short-circuiting” OR operation. 
+Each argument is expanded, in order.
+ If an argument expands to a non-empty string the processing stops and 
+the result of the expansion is that string. If, after all arguments are expanded, 
+all of them are false (empty), then the result of the expansion is the empty string.
+
+【and函数】
+$(and condition1[,condition2[,condition3…]])
+The and function provides a “short-circuiting” AND operation. Each argument is expanded, in order. 
+If an argument expands to an empty string the processing stops and the result of the expansion is the empty string. 
+If all arguments expand to a non-empty string then the result of the expansion is the expansion of the last argument.
+
+
+【makefile 条件分支】
+(一)
+ifeq (arg1, arg2)  arg1 == arg2
+ifeq 'arg1' 'arg2'
+ifeq "arg1" "arg2"
+ifeq "arg1" 'arg2'
+ifeq 'arg1' "arg2"
+
+ifneq (arg1, arg2)  arg1 != arg2 
+ifneq 'arg1' 'arg2'
+ifneq "arg1" "arg2"
+ifneq "arg1" 'arg2'
+ifneq 'arg1' "arg2"
+
+
+
+ifeq ($(strip $(foo)),) 测试值是否为空
+text-if-empty
+endif
+
+让静态库保持最新的例子 For example, here is how to arrange to use ‘ranlib -t’ to finish marking an archive file up to date:
+
+archive.a: …
+ifneq (,$(findstring t,$(MAKEFLAGS)))  测试值不为空
+        +touch archive.a
+        +ranlib -t archive.a
+else
+        ranlib archive.a
+endif
+The ‘+’ prefix marks those recipe lines as “recursive” so that they will be executed despite use of the ‘-t’ flag
+
+
+（二） ifdef variable-name
+
+bar =
+foo = $(bar)
+ifdef foo
+frobozz = yes
+else
+frobozz = no
+endif    frobozz 为 yes 
+
+foo =
+ifdef foo
+frobozz = yes
+else
+frobozz = no
+endif  为no
+
+（三）  ifndef variable-name
+
+【filter函数】
+$(filter pattern…,text)  返回text中符合pattern 的所有文件
+sources := foo.c bar.c baz.s ugh.h
+foo: $(sources)
+        cc $(filter %.c %.s,$(sources)) -o foo  返回 foo.c bar.c baz.s
+
+【filter-out函数】
+$(filter-out pattern…,text) text 不返回符合pattern中的名字
+objects=main1.o foo.o main2.o bar.o
+mains=main1.o main2.o 
+the following generates a list which contains all the object files not in ‘mains’:
+
+$(filter-out $(mains),$(objects)) 返回 foo.o bar.o
+
+【strip函数】
+$(strip string) 去掉string 首尾空格
+
+【subst函数】
+$(subst ee,EE,feet on the street)  结果‘fEEt on the strEEt
+
+【patsubst函数】
+$(patsubst pattern,replacement,text)
+$(patsubst %.c,%.o,x.c.c bar.c)  结果 ‘x.c.o bar.o’. 替换匹配
+
+也可以使用这个来替换
+objects = foo.o bar.o baz.o
+To get the list of corresponding source files, you could simply write:
+$(objects:.o=.c)
+instead of using the general form:
+$(patsubst %.o,%.c,$(objects))
+
+
+【shell 函数】
+contents := $(shell cat foo)
+files := $(shell echo *.c)
+
+【foreach函数】
+dirs := a b c d
+files := $(foreach dir,$(dirs),$(wildcard $(dir)/*))  等于 files := $(wildcard a/* b/* c/* d/*)
+
+展开
+find_files = $(wildcard $(dir)/*)
+dirs := a b c d
+files := $(foreach dir,$(dirs),$(find_files))
+
+【使用make 创建静态库】
+foolib(hack.o) : hack.o
+        ar cr foolib hack.o  ####   archive(member)  member 可以是多个 (hack.o name.o lst.o)空格分隔
+
+更新静态库
+An archive file that is used as a library usually contains a special member named __.SYMDEF that
+contains a directory of the external symbol names defined by all the other members.
+After you update any other members, you need to update __.SYMDEF so that it will summarize the other members properly. 
+This is done by running the ranlib program
+
+
+libfoo.a: libfoo.a(x.o) libfoo.a(y.o) …
+	ranlib libfoo.a
+The effect of this is to update archive members x.o, y.o, etc., and then update the symbol directory member __.SYMDEF by running ranlib. ar 命令自动更新
+
+过时的写法
+.c.a:
+        $(CC) $(CFLAGS) $(CPPFLAGS) -c $< -o $*.o
+        $(AR) r $@ $*.o
+        $(RM) $*.o
+
+This works just as if you had written the pattern rule:
+
+(%.o): %.c
+        $(CC) $(CFLAGS) $(CPPFLAGS) -c $< -o $*.o
+        $(AR) r $@ $*.o
+        $(RM) $*.o
+
+REDIS_CC=$(QUIET_CC)$(CC) $(FINAL_CFLAGS)
+REDIS_LD=$(QUIET_LINK)$(CC) $(FINAL_LDFLAGS)
+REDIS_INSTALL=$(QUIET_INSTALL)$(INSTALL)
+ 
+CCCOLOR="\033[34m"
+LINKCOLOR="\033[34;1m"
+SRCCOLOR="\033[33m"
+BINCOLOR="\033[37;1m"
+MAKECOLOR="\033[32;1m"
+ENDCOLOR="\033[0m"
+ 
+ifndef V
+QUIET_CC = @printf '    %b %b\n' $(CCCOLOR)CC$(ENDCOLOR) $(SRCCOLOR)$@$(ENDCOLOR) 1>&2;
+QUIET_LINK = @printf '    %b %b\n' $(LINKCOLOR)LINK$(ENDCOLOR) $(BINCOLOR)$@$(ENDCOLOR) 1>&2;
+QUIET_INSTALL = @printf '    %b %b\n' $(LINKCOLOR)INSTALL$(ENDCOLOR) $(BINCOLOR)$@$(ENDCOLOR) 1>&2;
+endif
+
+
+
+
